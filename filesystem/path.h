@@ -21,6 +21,7 @@
 #include <utility>
 #include <climits>
 #include <cstdio>
+#include <tuple>
 
 #if defined(_WIN32)
 # include <windows.h>
@@ -60,21 +61,21 @@ public:
 	};
 
 	path()
-			: type(native_path)
-			, absolute(false) {
+			: type_(native_path)
+			, absolute_(false) {
 	}
 
 	path(const path &path)
-			: type(path.type)
-			, leafs(path.leafs)
-			, absolute(path.absolute) {
+			: type_(path.type_)
+			, leafs_(path.leafs_)
+			, absolute_(path.absolute_) {
 	}
 
 #if __cplusplus >= 201103L
 	path(path &&path)
-			: type(path.type)
-			, leafs(std::move(path.leafs))
-			, absolute(path.absolute) {
+			: type_(path.type_)
+			, leafs_(std::move(path.leafs_))
+			, absolute_(path.absolute_) {
 	}
 #endif
 
@@ -96,45 +97,45 @@ public:
 #endif
 
 	path(const std::vector<std::string> &leafs)
-			: type(native_path)
-			, leafs(leafs)
-			, absolute(false) {
+			: type_(native_path)
+			, leafs_(leafs)
+			, absolute_(false) {
 	}
 
 	size_t length() const {
-		return this->leafs.size();
+		return this->leafs_.size();
 	}
 
 	bool empty() const {
-		return this->leafs.empty();
+		return this->leafs_.empty();
 	}
 
 	bool is_absolute() const {
-		return this->absolute;
+		return this->absolute_;
 	}
 
 	std::vector<std::string>::iterator begin() {
-		return this->leafs.begin();
+		return this->leafs_.begin();
 	}
 
 	std::vector<std::string>::iterator end() {
-		return this->leafs.end();
+		return this->leafs_.end();
 	}
 
 	const std::vector<std::string>::const_iterator cbegin() const {
-		return this->leafs.cbegin();
+		return this->leafs_.cbegin();
 	}
 
 	const std::vector<std::string>::const_iterator cend() const {
-		return this->leafs.cend();
+		return this->leafs_.cend();
 	}
 
 	path slice(size_t begin) const {
-		return path(std::vector<std::string>(this->leafs.cbegin() + begin, this->leafs.cend()));
+		return path(std::vector<std::string>(this->leafs_.cbegin() + begin, this->leafs_.cend()));
 	}
 
 	path slice(size_t begin, size_t end) const {
-		return path(std::vector<std::string>(this->leafs.cbegin() + begin, this->leafs.cbegin() + end));
+		return path(std::vector<std::string>(this->leafs_.cbegin() + begin, this->leafs_.cbegin() + end));
 	}
 
 	path make_absolute() const {
@@ -226,16 +227,16 @@ public:
 
 	path dirname() const {
 		path result;
-		result.absolute = this->absolute;
+		result.absolute_ = this->absolute_;
 
-		if (this->leafs.empty()) {
-			if (!this->absolute) {
-				result.leafs.push_back("..");
+		if (this->leafs_.empty()) {
+			if (!this->absolute_) {
+				result.leafs_.push_back("..");
 			}
 		} else {
-			size_t until = this->leafs.size() - 1;
+			size_t until = this->leafs_.size() - 1;
 			for (size_t i = 0; i < until; ++i) {
-				result.leafs.push_back(this->leafs[i]);
+				result.leafs_.push_back(this->leafs_[i]);
 			}
 		}
 
@@ -243,22 +244,22 @@ public:
 	}
 
 	std::string operator [](size_t i) const {
-		return this->leafs[i];
+		return this->leafs_[i];
 	}
 
 	path operator /(const path &other) const {
-		if (other.absolute) {
+		if (other.absolute_) {
 			throw std::runtime_error("path::operator/(): expected a relative path!");
 		}
 
-		if (this->type != other.type) {
+		if (this->type_ != other.type_) {
 			throw std::runtime_error("path::operator/(): expected a path of the same type!");
 		}
 
 		path result(*this);
 
-		for (size_t i=0; i<other.leafs.size(); ++i) {
-			result.leafs.push_back(other.leafs[i]);
+		for (size_t i=0; i<other.leafs_.size(); ++i) {
+			result.leafs_.push_back(other.leafs_[i]);
 		}
 
 		return result;
@@ -267,14 +268,14 @@ public:
 	std::string str(path_type type = native_path) const {
 		std::ostringstream oss;
 
-		if (this->type == posix_path && this->absolute) {
+		if (this->type_ == posix_path && this->absolute_) {
 			oss << "/";
 		}
 
-		for (size_t i=0; i<this->leafs.size(); ++i) {
-			oss << this->leafs[i];
+		for (size_t i=0; i<this->leafs_.size(); ++i) {
+			oss << this->leafs_[i];
 
-			if (i+1 < this->leafs.size()) {
+			if (i+1 < this->leafs_.size()) {
 				if (type == posix_path) {
 					oss << '/';
 				} else {
@@ -287,13 +288,13 @@ public:
 	}
 
 	void set(const std::string &str, path_type type = native_path) {
-		this->type = type;
+		this->type_ = type;
 		if (type == windows_path) {
-			this->leafs = tokenize(str, "/\\");
-			this->absolute = str.size() >= 2 && std::isalpha(str[0]) && str[1] == ':';
+			this->leafs_ = tokenize(str, "/\\");
+			this->absolute_ = str.size() >= 2 && std::isalpha(str[0]) && str[1] == ':';
 		} else {
-			this->leafs = tokenize(str, "/");
-			this->absolute = !str.empty() && str[0] == '/';
+			this->leafs_ = tokenize(str, "/");
+			this->absolute_ = !str.empty() && str[0] == '/';
 		}
 	}
 
@@ -302,7 +303,7 @@ public:
 			return "";
 		}
 
-		return this->leafs.back();
+		return this->leafs_.back();
 	}
 
 	path resolve(bool tryabsolute = true) const {
@@ -312,22 +313,22 @@ public:
 			result = this->make_absolute();
 		}
 
-		for (auto itr = result.leafs.begin(); itr != result.leafs.end();) {
+		for (auto itr = result.leafs_.begin(); itr != result.leafs_.end();) {
 			if (*itr == ".") {
-				itr = result.leafs.erase(itr);
+				itr = result.leafs_.erase(itr);
 				continue;
 			}
 
 			if (*itr == "..") {
-				if (itr == result.leafs.begin()) {
-					if (result.absolute) {
-						itr = result.leafs.erase(itr);
+				if (itr == result.leafs_.begin()) {
+					if (result.absolute_) {
+						itr = result.leafs_.erase(itr);
 					} else {
 						++itr;
 					}
 				} else if (*(itr - 1) != "..") {
-					itr = result.leafs.erase(itr - 1);
-					itr = result.leafs.erase(itr);
+					itr = result.leafs_.erase(itr - 1);
+					itr = result.leafs_.erase(itr);
 				} else {
 					++itr;
 				}
@@ -342,59 +343,59 @@ public:
 
 	path as_relative() const {
 		path result(*this);
-		result.absolute = false;
+		result.absolute_ = false;
 		return result;
 	}
 
 	path as_absolute() const {
 		path result(*this);
-		result.absolute = true;
+		result.absolute_ = true;
 		return result;
 	}
 
 	path resolve(const path &to) const {
 		path result = this->resolve();
 
-		if (!result.absolute) {
+		if (!result.absolute_) {
 			throw std::runtime_error("path::resolve(): this path must be absolute, must exist so make_absolute() works");
 		}
 
-		if (this->type != result.type) {
+		if (this->type_ != result.type_) {
 			throw std::runtime_error("path::resolve(): 'to' path has different type");
 		}
 
-		if (to.absolute) {
+		if (to.absolute_) {
 			return to;
 		}
 
-		for (std::string leaf : to.leafs) {
+		for (std::string leaf : to.leafs_) {
 			if (leaf == ".") {
 				continue;
 			}
 
-			if (leaf == ".." && result.leafs.size()) {
-				result.leafs.pop_back();
+			if (leaf == ".." && result.leafs_.size()) {
+				result.leafs_.pop_back();
 				continue;
 			}
 
-			result.leafs.push_back(leaf);
+			result.leafs_.push_back(leaf);
 		}
 
 		return result;
 	}
 
 	path &operator =(const path &path) {
-		this->type = path.type;
-		this->leafs = path.leafs;
-		this->absolute = path.absolute;
+		this->type_ = path.type_;
+		this->leafs_ = path.leafs_;
+		this->absolute_ = path.absolute_;
 		return *this;
 	}
 
 	path &operator =(path &&path) {
 		if (this != &path) {
-			this->type = path.type;
-			this->leafs = std::move(path.leafs);
-			this->absolute = path.absolute;
+			this->type_ = path.type_;
+			this->leafs_ = std::move(path.leafs_);
+			this->absolute_ = path.absolute_;
 		}
 		return *this;
 	}
@@ -486,22 +487,22 @@ public:
 #endif
 
 	bool operator ==(const path &left) const {
-		return left.leafs == this->leafs;
+		return left.leafs_ == this->leafs_;
 	}
 
 	bool operator !=(const path &left) const {
-		return left.leafs != this->leafs;
+		return left.leafs_ != this->leafs_;
 	}
 
 	bool operator <(const path &right) const {
-		return std::tie(this->type, this->absolute, this->leafs) < std::tie(right.type, right.absolute, right.leafs);
+		return std::tie(this->type_, this->absolute_, this->leafs_) < std::tie(right.type_, right.absolute_, right.leafs_);
 	}
 
 	/*
 		not the safest method! use with care!
 	*/
 	bool mkdirp() const {
-		if (!this->absolute) {
+		if (!this->absolute_) {
 			throw std::runtime_error("path must be absolute to mkdirp()");
 		}
 
@@ -520,7 +521,7 @@ public:
 	}
 
 	void push_back(std::string leaf) {
-		this->leafs.push_back(leaf);
+		this->leafs_.push_back(leaf);
 	}
 
 protected:
@@ -549,9 +550,9 @@ protected:
 	}
 
 protected:
-	path_type type;
-	std::vector<std::string> leafs;
-	bool absolute;
+	path_type type_;
+	std::vector<std::string> leafs_;
+	bool absolute_;
 };
 
 inline bool create_directory(const path& p) {
@@ -575,9 +576,9 @@ struct hash<filesystem::path> {
 
 	result_type operator()(const filesystem::path &path) const {
 		std::size_t seed { 0 };
-		hash_combine(seed, (size_t) path.type);
-		hash_combine(seed, path.absolute);
-		for (const string &s : path.leafs) {
+		hash_combine(seed, (size_t) path.type_);
+		hash_combine(seed, path.absolute_);
+		for (const string &s : path.leafs_) {
 			hash_combine(seed, s);
 		}
 		return seed;
