@@ -2,13 +2,13 @@
 #define FILESYSTEM_HPP__
 #pragma once
 /*
-    Filesystem utility library
+	Filesystem utility library
 
-    Copyright (c) 2015-2017 Wenzel Jakob <wenzel@inf.ethz.ch>
-    Copyright (c) 2017 Josh Junon <josh@junon.me>
+	Copyright (c) 2015-2017 Wenzel Jakob <wenzel@inf.ethz.ch>
+	Copyright (c) 2017 Josh Junon <josh@junon.me>
 
-    All rights reserved. Use of this source code is governed by a
-    BSD-style license that can be found in the LICENSE file.
+	All rights reserved. Use of this source code is governed by a
+	BSD-style license that can be found in the LICENSE file.
 */
 
 #include <string>
@@ -22,6 +22,9 @@
 #include <utility>
 #include <climits>
 #include <cstdio>
+// string / wstring conversions
+#include <locale>
+#include <codecvt>
 
 #if defined(_WIN32)
 	#include <windows.h>
@@ -34,11 +37,74 @@
 	#include <linux/limits.h>
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+// Imported from:                                                            //
+// https://github.com/python/cpython/blob/master/Include/osdefs.h            //
+/* Operating system dependencies */
+#if defined(_WIN32)
+	#define FILESYSTEM_SEP L'\\'
+	#define FILESYSTEM_ALTSEP L'/'
+	#define FILESYSTEM_MAXPATHLEN 256
+	#define FILESYSTEM_DELIM L';'
+#endif
+
+/* Filename separator */
+#if !defined(FILESYSTEM_SEP)
+	#define FILESYSTEM_SEP L'/'
+#endif
+
+/* Max pathname length */
+#ifdef __hpux
+	#include <sys/param.h>
+	#include <limits.h>
+	#if !defined(PATH_MAX)
+		#define PATH_MAX MAXPATHLEN
+	#endif
+#endif
+
+#if !defined(MAXPATHLEN)
+	#if defined(PATH_MAX) && PATH_MAX > 1024
+		#define MAXPATHLEN PATH_MAX
+	#else
+		#define MAXPATHLEN 1024
+	#endif
+#endif
+
+/* Search path entry delimiter */
+#if !defined(DELIM)
+	#define FILESYSTEM_DELIM L':'
+#endif
+// end import osdefs.h                                                       //
+///////////////////////////////////////////////////////////////////////////////
+
 namespace filesystem {
 
 class path;
 
 inline bool create_directory(const path &);
+
+// WARNING: do *NOT* call these methods directly, these exist as helpers for
+//          path::make_absolute.  Direct usage is undefined.
+namespace detail {
+	// see implementations near bottom of file
+	static void joinpath(wchar_t *buffer, wchar_t *stuff);
+	static void copy_absolute(wchar_t *path, wchar_t *p, size_t pathlen);
+	static void absolutize(wchar_t *path);
+
+	// convert wstr to str, default: std::codecvt_utf8<wchar_t>
+	template <typename Char_t = wchar_t, typename Conv_t = std::codecvt_utf8<Char_t>>
+	std::string as_string(const std::wstring &wstr) {
+		std::wstring_convert<Conv_t, Char_t> conversion;
+		return conversion.to_bytes(wstr);
+	}
+
+	// convert str to wstr, default: std::codecvt_utf8<wchar_t>
+	template <typename Char_t = wchar_t, typename Conv_t = std::codecvt_utf8<Char_t>>
+	std::wstring as_wstring(const std::string &str) {
+		std::wstring_convert<Conv_t, Char_t> conversion;
+		return conversion.from_bytes(str);
+	}
+}
 
 /**
     \brief Simple class for manipulating paths on Linux/Windows/Mac OS
@@ -142,24 +208,24 @@ public:
 	}
 
 	path make_absolute() const {
-#if !defined(_WIN32)
-		char temp[PATH_MAX];
+		try {
+			// create a buffer and call the detal absolutize method
+			wchar_t buffer[MAXPATHLEN+1];
+			std::wstring wstr = detail::as_wstring(this->str());
+			wcscpy(buffer, wstr.c_str());
+			detail::absolutize(buffer);
 
-		if (realpath(str().c_str(), temp) == NULL) {
-			throw std::runtime_error("Internal error in realpath(): " + std::string(strerror(errno)));
+			// create the resultant path and return it
+			std::string str = detail::as_string(std::wstring(buffer));
+			path ret = path(str).resolve(false);// eliminate . or ..
+			ret.absolute = true;
+			return ret;
 		}
-
-		return path(temp);
-#else
-		std::wstring value = wstr(), out(MAX_PATH, '\0');
-		DWORD length = GetFullPathNameW(value.c_str(), MAX_PATH, &out[0], NULL);
-
-		if (length == 0) {
-			throw std::runtime_error("Internal error in realpath(): " + std::to_string(GetLastError()));
+		catch(const std::exception &e) {
+			throw std::runtime_error(
+				std::string("Internal error in filesystem::path::make_absolute: ") + e.what()
+			);
 		}
-
-		return path(out.substr(0, length));
-#endif
 	}
 
 	bool exists() const {
@@ -517,7 +583,7 @@ public:
 	}
 
 	/*
-	    not the safest method! use with care!
+		not the safest method! use with care!
 	*/
 	bool mkdirp() const {
 		if (!this->absolute) {
@@ -584,11 +650,11 @@ inline bool create_directory(const path &p) {
 }
 
 /**
-    \brief Simple class for resolving paths on Linux/Windows/Mac OS
+	\brief Simple class for resolving paths on Linux/Windows/Mac OS
 
-    This convenience class looks for a file or directory given its name
-    and a set of search paths. The implementation walks through the
-    search paths in order and stops once the file is found.
+	This convenience class looks for a file or directory given its name
+	and a set of search paths. The implementation walks through the
+	search paths in order and stops once the file is found.
 */
 class resolver {
 public:
@@ -667,7 +733,78 @@ private:
 	std::vector<path> m_paths;
 };
 
+///////////////////////////////////////////////////////////////////////////////
+// Imported from:                                                            //
+// https://github.com/python/cpython/blob/master/Modules/getpath.c           //
+namespace detail {
+
+/* Add a path component, by appending stuff to buffer.
+   buffer must have at least MAXPATHLEN + 1 bytes allocated, and contain a
+   NUL-terminated string with no more than MAXPATHLEN characters (not counting
+   the trailing NUL).  It's a fatal error if it contains a string longer than
+   that (callers must be careful!).  If these requirements are met, it's
+   guaranteed that buffer will still be a NUL-terminated string with no more
+   than MAXPATHLEN characters at exit.  If stuff is too long, only as much of
+   stuff as fits will be appended.
+*/
+static void joinpath(wchar_t *buffer, wchar_t *stuff) {
+	size_t n, k;
+	if (stuff[0] == FILESYSTEM_SEP)
+		n = 0;
+	else {
+		n = wcslen(buffer);
+		if (n > 0 && buffer[n-1] != FILESYSTEM_SEP && n < MAXPATHLEN)
+			buffer[n++] = FILESYSTEM_SEP;
+	}
+	if (n > MAXPATHLEN)
+		throw std::runtime_error("buffer overflow in filesystem.hpp's joinpath()");
+	k = wcslen(stuff);
+	if (n + k > MAXPATHLEN)
+		k = MAXPATHLEN - n;
+	wcsncpy(buffer+n, stuff, k);
+	buffer[n+k] = '\0';
 }
+
+/* copy_absolute requires that path be allocated at least
+   MAXPATHLEN + 1 bytes and that p be no more than MAXPATHLEN bytes. */
+static void copy_absolute(wchar_t *path, wchar_t *p, size_t pathlen) {
+	if (p[0] == FILESYSTEM_SEP)
+		wcscpy(path, p);
+	else {
+		::filesystem::path cwd;
+		try {
+			cwd = path::getcwd();
+		}
+		catch(...) {
+			/* unable to get the current directory */
+			wcscpy(path, p);
+			return;
+		}
+		// current working directory was discovered, convert to wide
+		std::wstring cwd_wide = as_wstring(cwd.str());
+		wcscpy(path, cwd_wide.c_str());
+
+		if (p[0] == '.' && p[1] == FILESYSTEM_SEP)
+			p += 2;
+		joinpath(path, p);
+	}
+}
+
+/* absolutize() requires that path be allocated at least MAXPATHLEN+1 bytes. */
+static void absolutize(wchar_t *path) {
+	wchar_t buffer[MAXPATHLEN+1];
+
+	if (path[0] == FILESYSTEM_SEP)
+		return;
+	copy_absolute(buffer, path, MAXPATHLEN+1);
+	wcscpy(path, buffer);
+}
+
+}// namespace detail
+// end import getpath.c                                                      //
+///////////////////////////////////////////////////////////////////////////////
+
+}// namespace filesystem
 
 namespace std {
 
@@ -696,5 +833,5 @@ private:
 	}
 };
 
-}
+}// namespace std
 #endif
