@@ -50,29 +50,29 @@ int main(int argc, char **argv) {
     path path1(VOL SEP "dir 1" SEP "dir 2" SEP);
     path path2("dir 3");
 
-	// check empty path
-	path p;
-	IS(p.length(), 0);
-	IS(p, "");
+    // check empty path
+    path p;
+    IS(p.length(), 0);
+    IS(p, "");
 
-	p = path("");
-	IS(p.length(), 0);
-	IS(p, "");
+    p = path("");
+    IS(p.length(), 0);
+    IS(p, "");
 
 #ifdef _WIN32
     IS(path1.length(), 3);
-	IS(path1[0], "c:");
-	IS(path1[1], "dir 1");
+    IS(path1[0], "c:");
+    IS(path1[1], "dir 1");
     IS(path1[2], "dir 2");
 #else
-	IS(path1.length(), 2);
-	IS(path1[0], "dir 1");
-	IS(path1[1], "dir 2");
+    IS(path1.length(), 2);
+    IS(path1[0], "dir 1");
+    IS(path1[1], "dir 2");
 #endif
 
     NOK(path1.exists());
 
-	p = path("a/b/c/d");
+    p = path("a/b/c/d");
     IS(p.slice(1), path("b/c/d"));
     IS(p.slice(2), path("c/d"));
     IS(p.slice(0, 0), path());
@@ -81,35 +81,35 @@ int main(int argc, char **argv) {
     IS(p.slice(0, 2), path("a/b"));
     IS(p.slice(0, 3), path("a/b/c"));
 
-	IS(path1, VOL SEP "dir 1" SEP "dir 2");
+    IS(path1, VOL SEP "dir 1" SEP "dir 2");
 
-	p = (path1 / path2); 
-	IS(p, VOL SEP "dir 1" SEP "dir 2" SEP "dir 3");
+    p = (path1 / path2);
+    IS(p, VOL SEP "dir 1" SEP "dir 2" SEP "dir 3");
 
-	p = (path1 / path2).dirname(); 
-	IS(p, VOL SEP "dir 1" SEP "dir 2");
+    p = (path1 / path2).dirname();
+    IS(p, VOL SEP "dir 1" SEP "dir 2");
 
-	p = (path1 / path2).dirname().dirname(); 
-	IS(p, VOL SEP "dir 1");
+    p = (path1 / path2).dirname().dirname();
+    IS(p, VOL SEP "dir 1");
 
 #ifdef _WIN32
-	p = (path1 / path2).dirname().dirname().dirname(); 
-	IS(p, VOL);
+    p = (path1 / path2).dirname().dirname().dirname();
+    IS(p, VOL);
 
-	p = (path1 / path2).dirname().dirname().dirname().dirname(); 
-	IS(p, "");
+    p = (path1 / path2).dirname().dirname().dirname().dirname();
+    IS(p, "");
 #else
-	p = (path1 / path2).dirname().dirname().dirname(); 
-	IS(p, SEP);
+    p = (path1 / path2).dirname().dirname().dirname();
+    IS(p, SEP);
 
-	p = (path1 / path2).dirname().dirname().dirname().dirname(); 
-	IS(p, SEP);
+    p = (path1 / path2).dirname().dirname().dirname().dirname();
+    IS(p, SEP);
 #endif
 
-	p = path().dirname();
-	IS(p, "..");
+    p = path().dirname();
+    IS(p, "..");
 
-	cout << (path1/path1.as_relative()) << endl;
+    cout << (path1/path1.as_relative()) << endl;
 
     cout << "some/path.ext:operator==() = " << (path("some/path.ext") == path("some/path.ext")) << endl;
     cout << "some/path.ext:operator==() (unequal) = " << (path("some/path.ext") == path("another/path.ext")) << endl;
@@ -162,6 +162,17 @@ int main(int argc, char **argv) {
 
     cout << "resolve(filesystem/path.h) = " << resolver().resolve("filesystem/path.h") << endl;
     cout << "resolve(nonexistant) = " << resolver().resolve("nonexistant") << endl;
+
+    // tests for absolute paths that do not exist
+    cout << "absolute: ./this_is_not_a_path/file.txt = " << path("./this_is_not_a_path/file.txt").make_absolute() << endl;
+    cout << "absolute: this_is_not_a_path/no_leading_dot.tar = " << path("this_is_not_a_path/no_leading_dot.tar").make_absolute() << endl;
+    cout << "absolute: . = " << path(".").make_absolute() << endl;
+    cout << "absolute: .. = " << path("..").make_absolute() << endl;
+    cout << "absolute: /var/tmp = " << path("/var/tmp").make_absolute() << endl;
+    cout << "absolute: /var/tmp and .. = " << (path("/var/tmp") / path("..")).make_absolute() << endl;
+    cout << "absolute: /not/real = " << path("/not/real").make_absolute() << endl;
+    cout << "absoulte: /not/real and .. = " << (path("/not/real") / path("..")).make_absolute() << endl;
+    cout << "absolute: /var/tmp/../www/. = " << path("/var/tmp/../www/.").make_absolute() << endl;
 
     DONE_TESTING();
 }
