@@ -4,15 +4,6 @@ RUN apk --update add alpine-sdk python3 bash ninja linux-headers
 RUN pip3 install --upgrade pip
 RUN pip3 install meson
 COPY . ./
-
-# Debug
-FROM base
-RUN meson --buildtype=debug build
-WORKDIR /src/build
-RUN meson test
-
-# Release
-FROM base
-RUN meson --buildtype=release build
+RUN meson build
 WORKDIR /src/build
 RUN meson test
