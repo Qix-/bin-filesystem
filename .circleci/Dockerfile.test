@@ -1,6 +1,6 @@
 FROM alpine:3.7 AS base
 WORKDIR /src
-RUN apk --update add alpine-sdk python3 bash ninja
+RUN apk --update add alpine-sdk python3 bash ninja linux-headers
 RUN pip3 install --upgrade pip
 RUN pip3 install meson
 COPY . ./
