@@ -1,4 +1,4 @@
-# Filesystem.hpp
+# Filesystem.hpp [![CircleCI](https://circleci.com/gh/bin-build/filesystem.svg?style=svg)](https://circleci.com/gh/bin-build/filesystem)
 
 > Originally from [wjakob/filesystem](https://github.com/wjakob/filesystem)
 
