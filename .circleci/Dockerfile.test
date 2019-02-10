@@ -1,9 +1,8 @@
 FROM alpine:3.7 AS base
 WORKDIR /src
-RUN apk --update add alpine-sdk python3 bash ninja linux-headers
-RUN pip3 install --upgrade pip
-RUN pip3 install meson
+RUN apk --update add alpine-sdk bash ninja linux-headers cmake
 COPY . ./
-RUN meson build
 WORKDIR /src/build
-RUN meson test
+RUN cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+RUN ninja
+RUN ctest
