@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 2.8.4)
-project(filesystem)
-
-message (WARNING "CMake configuration for filesystem.hpp is DEPRECATED. Please use the Meson dependency instead. https://mesonbuild.com/Tutorial.html")
-
+project(path)
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # Enable C++11 mode on GCC / Clang
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -U__STRICT_ANSI__")
