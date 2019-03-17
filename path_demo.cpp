@@ -167,5 +167,11 @@ int main(int argc, char **argv) {
     cout << "with_extension(foo.bar -> foo.qix) = " << path("a/b/c/foo.bar").with_extension(".qix") << endl;
     cout << "relative(base=/a/b/c/d, target=/a/b/f/g/e) = " << path("/a/b/f/g/e").relative("/a/b/c/d") << endl;
 
+    {
+        path foo = "foo";
+        foo /= "bar";
+        cout << "operator /=(): " << foo << endl;
+    }
+
     DONE_TESTING();
 }

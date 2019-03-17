@@ -277,6 +277,22 @@ public:
 		return this->leafs[i];
 	}
 
+	path & operator /=(const path &other) {
+		if (other.absolute) {
+			throw std::runtime_error("path::operator/(): expected a relative path!");
+		}
+
+		if (this->type != other.type) {
+			throw std::runtime_error("path::operator/(): expected a path of the same type!");
+		}
+
+		for (size_t i = 0; i < other.leafs.size(); ++i) {
+			this->leafs.push_back(other.leafs[i]);
+		}
+
+		return *this;
+	}
+
 	path operator /(const path &other) const {
 		if (other.absolute) {
 			throw std::runtime_error("path::operator/(): expected a relative path!");
