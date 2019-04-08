@@ -11,6 +11,10 @@
     BSD-style license that can be found in the LICENSE file.
 */
 
+// miwindef.h defines min and max macros, these conflict with std::min and std::max
+// defining NOMINMAX, the min and max are not defined
+#define NOMINMAX
+
 #include <string>
 #include <vector>
 #include <stdexcept>
